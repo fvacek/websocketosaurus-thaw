@@ -2,6 +2,7 @@ use crate::web_sys::CloseEvent;
 use thaw::*;
 use leptos::ev::Event;
 use leptos::*;
+use leptos_router::{use_query_map};
 use leptos_use::core::ConnectionReadyState;
 use leptos_use::{use_websocket_with_options, UseWebSocketOptions};
 use shv::client::LoginParams;
@@ -11,20 +12,39 @@ use url::Url;
 
 #[component]
 pub fn MainPage() -> impl IntoView {
+    let query = use_query_map();
+
     let (is_connect, set_connect) = create_signal(false);
     let (is_socket_connected, set_socket_connected) = create_signal(false);
     //let (text, set_text) = create_signal("wss://nirvana.elektroline.cz:37778?user=iot&password=lub42DUB".to_owned());
 
     // let input_url: NodeRef<html::Input> = create_node_ref();
-    let url_sig = create_rw_signal(String::from("wss://nirvana.elektroline.cz:37778?user=iot&password=test"));
+    let url_sig = create_rw_signal(String::from("wss://nirvana.elektroline.cz:37778"));
+    create_effect(move |_| {
+        query.with(|q| {
+            let qs = q.to_query_string();
+            if qs.is_empty() {
+                url_sig.update(|url: &mut String| { url.push_str("/?user=test&password=test"); })
+            } else {
+                url_sig.update(|url: &mut String| {
+                    url.push('/');
+                    url.push_str(&qs);
+                })
+            };
+        });
+    });
     view! {
         //<Box style="display: flex; flex-direction: column; align-items: center; padding: 1em; min-height: 100%; min-width: 100%">
         <div>
             <h2>"Welcome to Websocketosaurus"</h2>
-            <Space>
+            <div style="display: flex; flex-direction: row; align-items: center;">
                 <label for="url-str">"Url"</label>
-                <Input value=url_sig attr:id="url-str"/>
-            </Space>
+                "\u{00A0}" // &nbsp; doesn't work
+                <div style="flex-grow:100">
+                    <Input value=url_sig attr:id="url-str"/>
+                </div>
+            </div>
+            <Divider/>
             <Space>
                 <span>"socket connected: " {move || is_socket_connected.get()}</span>
                 <ButtonGroup>
@@ -32,6 +52,7 @@ pub fn MainPage() -> impl IntoView {
                     <Button on_click=move|_| set_connect.set(false) disabled=Signal::derive(move|| !is_connect.get())>"Disconnect"</Button>
                 </ButtonGroup>
             </Space>
+            <Divider/>
             {move || if is_connect.get() {
                 let url_str = url_sig.get_untracked();
                 view! {
